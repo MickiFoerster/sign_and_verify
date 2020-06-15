@@ -6,6 +6,9 @@ LDFLAGS=-L$(MBEDTLS)/bld/library -lmbedcrypto
 %.o : %.c
 	$(CC) $(CFLAGS) -c -o $@ $< 
 
+create_signature : create_signature.o
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+
 test: hash-evaluation
 	dd if=/dev/urandom of=testfile bs=4 count=4
 	./$<
@@ -22,6 +25,6 @@ $(MBEDTLS)-apache.tgz:
 	wget https://tls.mbed.org/download/$(MBEDTLS)-apache.tgz
 
 clean:
-	rm -f *.o hash-evaluation 
+	rm -f *.o hash-evaluation create_signature
 
 .PHONY: clean test
