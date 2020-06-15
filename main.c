@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <omp.h>
+//#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +13,7 @@
 #include <mbedtls/md_internal.h>
 
 const char testfile[] = "testfile";
-unsigned char hashes[1][MBEDTLS_MD_MAX_SIZE];
+unsigned char hashes[32][MBEDTLS_MD_MAX_SIZE];
 int current_hash_sum = 0;
 
 #define TEST_PREV                                                              \
@@ -108,8 +108,8 @@ void hash_whole_file_with_2_threads() {
   int num_threads = 0;
 #pragma omp parallel num_threads(2)
   {
-#pragma omp master
-    num_threads = omp_get_num_threads();
+//#pragma omp master
+//    num_threads = omp_get_num_threads();
 #pragma omp sections
     {
 #pragma omp section
@@ -156,7 +156,6 @@ void hash_whole_file_with_2_threads() {
       unsigned char buf[1024];
       for (int i = 0; i < sz; i += sizeof buf) {
         ssize_t n = read(fd, buf, sizeof buf);
-        fprintf(stderr, "%d: read %ld bytes\n", omp_get_thread_num(), n);
         if (n > 0) {
 #pragma omp critical
           { rc = mbedtls_md_update(&md_ctx, buf, n); }
@@ -197,8 +196,8 @@ int main() {
   hash_whole_file_with_sequence_of_updates(1024 * 1024);
   current_hash_sum++;
 
-  hash_whole_file_with_2_threads();
-  current_hash_sum++;
+  //hash_whole_file_with_2_threads();
+  //current_hash_sum++;
 
   return 0;
 }
