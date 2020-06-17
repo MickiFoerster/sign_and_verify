@@ -6,6 +6,8 @@ LDFLAGS=-L$(MBEDTLS)/bld/library -lmbedcrypto
 %.o : %.c
 	$(CC) $(CFLAGS) -c -o $@ $< 
 
+verify_signature : verify_signature.o
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 create_signature : create_signature.o
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
