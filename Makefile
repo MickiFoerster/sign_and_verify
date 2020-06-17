@@ -6,18 +6,25 @@ LDFLAGS=-L$(MBEDTLS)/bld/library -lmbedcrypto
 %.o : %.c
 	$(CC) $(CFLAGS) -c -o $@ $< 
 
-verify_signature : verify_signature.o
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
-create_signature : create_signature.o
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+all: verify_signature \
+     create_signature \
+     hash-evaluation
+
+verify_signature : verify_signature.o printer.o create_hash.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+create_signature : create_signature.o printer.o create_hash.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 test: hash-evaluation
 	dd if=/dev/urandom of=testfile bs=4 count=4
 	./$<
 
-hash-evaluation.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
 hash-evaluation : hash-evaluation.o
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+
+verify_signature.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
+create_signature.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
+hash-evaluation.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
 
 $(MBEDTLS)/bld/library/libmbedcrypto.a: $(MBEDTLS)-apache.tgz
 	tar xfz $<
