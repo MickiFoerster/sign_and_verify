@@ -1,57 +1,30 @@
+#include <assert.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-
-#include <mbedtls/ecdsa.h>
-
-static int myrand(void *rng_state, unsigned char *output, size_t len) {
-#if 0
-    size_t use_len;
-    int rnd;
-
-    if( rng_state != NULL )
-        rng_state  = NULL;
-
-    while( len > 0 )
-    {
-        use_len = len;
-        if( use_len > sizeof(int) )
-            use_len = sizeof(int);
-
-        rnd = rand();
-        memcpy( output, &rnd, use_len );
-        output += use_len;
-        len -= use_len;
-    }
-
-    return( 0 );
-#else
-  fprintf(stderr, "myrand() called with rng_state=%p and len=%ld \n", rng_state,
-          len);
-
-  if (rng_state != NULL)
-    rng_state = NULL;
-
-  FILE *fp = fopen("/dev/urandom", "rb");
-  assert(fp);
-  for (;;) {
-    size_t read = fread(output, sizeof *output, len, fp);
-    len -= read;
-    if (len == 0) {
-      break;
-    }
-  }
-
-  return 0;
-#endif
-}
 
 #include <mbedtls/bignum.h>
+#include <mbedtls/ecdsa.h>
 
-int mbedtls_ecdsa_write_my_signature(const char *filename, unsigned char *sig,
-                                     size_t *slen) {
+static void print_mbedtls_mpi(const char *mpiname, mbedtls_mpi mpi);
+static int myrand(void *rng_state, unsigned char *output, size_t len);
+static int create_signature_for_file(const char *filename);
+static void fprint_mbedtls_mpi(FILE *f, mbedtls_mpi mpi);
 
+int main(int argc, char *argv[]) {
+  if (argc != 2) {
+    fprintf(stderr, "syntax error: %s <filename that should be signed>",
+            argv[0]);
+    return 1;
+  }
+
+  int ret = create_signature_for_file(argv[1]);
+  assert(ret == 0);
+  return 0;
+}
+
+static int create_signature_for_file(const char *filename) {
   const mbedtls_md_info_t *md_info =
       mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
   if (md_info == NULL) {
@@ -110,60 +83,86 @@ int mbedtls_ecdsa_write_my_signature(const char *filename, unsigned char *sig,
     printf("Succesful signature\n");
   assert(ret == 0);
 
-  printf("r (%ld bytes)\n", sizeof(r));
-  printf("r.s: %d (%ld bytes)\n", r.s, sizeof(r.s));
-  printf("r.n: %ld (%ld bytes)\n", r.n, sizeof(r.n));
-  printf("*r.p: : ");
-  for (int i = 0; i < r.n; ++i) {
-    mbedtls_mpi_uint limb = r.p[i];
-    for (int j = 0; j < sizeof(limb); ++j)
-      printf("%02x", ((unsigned char *)&limb)[j]);
-  }
-  printf(" (%ld bytes)\n", sizeof(mbedtls_mpi_uint) * r.n);
-
+  // optional output for user
+  print_mbedtls_mpi("r", r);
   printf("\n");
-  printf("s (%ld bytes)\n", sizeof(s));
-  printf("s.s: %d (%ld bytes)\n", s.s, sizeof(s.s));
-  printf("s.n: %ld (%ld bytes)\n", s.n, sizeof(s.n));
-  printf("*s.p: : ");
-  for (int i = 0; i < s.n; ++i) {
-    mbedtls_mpi_uint limb = s.p[i];
-    for (int j = 0; j < sizeof(limb); ++j)
-      printf("%02x", ((unsigned char *)&limb)[j]);
+  print_mbedtls_mpi("s", s);
+  printf("\n");
+
+  printf("public key Q=(x,y,z):\n");
+  print_mbedtls_mpi("x", ecdsa.Q.X);
+  printf("\n");
+  print_mbedtls_mpi("y", ecdsa.Q.Y);
+  printf("\n");
+  print_mbedtls_mpi("z", ecdsa.Q.Z);
+  printf("\n");
+
+  // create signature file
+  char signature_filename[PATH_MAX];
+  snprintf(signature_filename, sizeof(signature_filename), "%s.sig", filename);
+  FILE *f = fopen(signature_filename, "wb");
+  assert(f);
+  {
+    int ch;
+    for (int i = 0; i < strlen(filename); ++i) {
+      ch = fputc(filename[i], f);
+      assert(ch == filename[i]);
+    }
+    ch = fputc('\0', f);
+    assert(ch == '\0');
   }
-  printf(" (%ld bytes)\n", sizeof(mbedtls_mpi_uint) * s.n);
+  fprint_mbedtls_mpi(f, r);
+  fprint_mbedtls_mpi(f, s);
+  fprint_mbedtls_mpi(f, ecdsa.Q.X);
+  fprint_mbedtls_mpi(f, ecdsa.Q.Y);
+  fprint_mbedtls_mpi(f, ecdsa.Q.Z);
+  fclose(f);
 
   mbedtls_mpi_free(&r);
   mbedtls_mpi_free(&s);
 
-#if 0
-outline above printing for easier usage for X,Y, and Z
-  Q (public key output is missing)
-
-typedef struct mbedtls_ecp_point
-{
-    mbedtls_mpi X;          /*!< The X coordinate of the ECP point. */
-    mbedtls_mpi Y;          /*!< The Y coordinate of the ECP point. */
-    mbedtls_mpi Z;          /*!< The Z coordinate of the ECP point. */
-}
-mbedtls_ecp_point;
-#endif
-
   return (ret);
 }
 
-int main(int argc, char *argv[]) {
-  unsigned char ec_result[1024];
-  int ret;
-  size_t sig_len;
+static void print_mbedtls_mpi(const char *mpiname, mbedtls_mpi mpi) {
+  printf("%s (%ld bytes)\n", mpiname, sizeof(mpi));
+  printf("%s.s: %d (%ld bytes)\n", mpiname, mpi.s, sizeof(mpi.s));
+  printf("%s.n: %ld (%ld bytes)\n", mpiname, mpi.n, sizeof(mpi.n));
+  printf("*%s.p: : ", mpiname);
+  for (int i = 0; i < mpi.n; ++i) {
+    mbedtls_mpi_uint limb = mpi.p[i];
+    for (int j = 0; j < sizeof(limb); ++j)
+      printf("%02x", ((unsigned char *)&limb)[j]);
+  }
+  printf(" (%ld bytes)\n", sizeof(*mpi.p) * mpi.n);
+}
 
-  if (argc != 2) {
-    fprintf(stderr, "syntax error: %s <filename that should be signed>",
-            argv[0]);
-    return 1;
+static void fprint_mbedtls_mpi(FILE *f, mbedtls_mpi mpi) {
+  size_t written;
+  written = fwrite(&mpi.s, sizeof(mpi.s), 1, f);
+  assert(written == 1);
+  written = fwrite(&mpi.n, sizeof(mpi.n), 1, f);
+  assert(written == 1);
+  written = fwrite(mpi.p, sizeof(mbedtls_mpi_uint), mpi.n, f);
+  assert(written == mpi.n);
+}
+
+static int myrand(void *rng_state, unsigned char *output, size_t len) {
+  fprintf(stderr, "myrand() called with rng_state=%p and len=%ld \n", rng_state,
+          len);
+
+  if (rng_state != NULL)
+    rng_state = NULL;
+
+  FILE *fp = fopen("/dev/random", "rb");
+  assert(fp);
+  for (;;) {
+    size_t read = fread(output, sizeof *output, len, fp);
+    len -= read;
+    if (len == 0) {
+      break;
+    }
   }
 
-  ret = mbedtls_ecdsa_write_my_signature(argv[1], ec_result, &sig_len);
-  assert(ret == 0);
   return 0;
 }

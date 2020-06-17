@@ -13,8 +13,8 @@ test: hash-evaluation
 	dd if=/dev/urandom of=testfile bs=4 count=4
 	./$<
 
-main.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
-hash-evaluation : main.o
+hash-evaluation.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
+hash-evaluation : hash-evaluation.o
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 $(MBEDTLS)/bld/library/libmbedcrypto.a: $(MBEDTLS)-apache.tgz
