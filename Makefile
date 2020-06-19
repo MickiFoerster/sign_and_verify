@@ -9,11 +9,15 @@ LDFLAGS=-L$(MBEDTLS)/bld/library -lmbedcrypto
 
 all: verify_signature \
      create_signature \
-     hash-evaluation
+     hash-evaluation \
+     create_keypair
 
-verify_signature : verify_signature.o printer.o create_hash.o
+create_keypair : create_keypair.o printer.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-create_signature : create_signature.o printer.o create_hash.o create_keypair.o
+
+verify_signature : verify_signature.o printer.o create_hash.o reader.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+create_signature : create_signature.o printer.o create_hash.o 
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 test: hash-evaluation
@@ -28,6 +32,7 @@ create_signature.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
 hash-evaluation.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
 
 $(MBEDTLS)/bld/library/libmbedcrypto.a: $(MBEDTLS)-apache.tgz
+	rm -rf $(MBEDTLS)
 	tar xfz $<
 	cd $(MBEDTLS) && mkdir bld && cd bld && cmake -GNinja .. && ninja
 
@@ -35,6 +40,9 @@ $(MBEDTLS)-apache.tgz:
 	wget https://tls.mbed.org/download/$(MBEDTLS)-apache.tgz
 
 clean:
-	rm -f *.o hash-evaluation create_signature
+	rm -f *.o \
+		    hash-evaluation \
+		    create_signature \
+				verify_signature 
 
 .PHONY: clean test

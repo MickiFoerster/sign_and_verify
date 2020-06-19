@@ -7,10 +7,10 @@
 #include <mbedtls/bignum.h>
 #include <mbedtls/ecdsa.h>
 
-void print_mbedtls_mpi(const char *mpiname, mbedtls_mpi mpi);
+#include "create_hash.h"
+#include "printer.h"
+
 static int create_signature_for_file(const char *filename);
-static void fprint_mbedtls_mpi(FILE *f, mbedtls_mpi mpi);
-int create_hash(const char* filename, unsigned char *hash, size_t *len);
 int create_keypair(mbedtls_ecp_group_id *grp_id, uint16_t *bit_size, mbedtls_mpi *d, mbedtls_ecp_point *Q);
 
 int main(int argc, char *argv[]) {
@@ -85,15 +85,5 @@ static int create_signature_for_file(const char *filename) {
   mbedtls_ecp_point_free(&Q);
 
   return rc;
-}
-
-static void fprint_mbedtls_mpi(FILE *f, mbedtls_mpi mpi) {
-  size_t written;
-  written = fwrite(&mpi.s, sizeof(mpi.s), 1, f);
-  assert(written == 1);
-  written = fwrite(&mpi.n, sizeof(mpi.n), 1, f);
-  assert(written == 1);
-  written = fwrite(mpi.p, sizeof(mbedtls_mpi_uint), mpi.n, f);
-  assert(written == mpi.n);
 }
 

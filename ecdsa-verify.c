@@ -7,9 +7,10 @@
 #include <mbedtls/bignum.h>
 #include <mbedtls/ecdsa.h>
 
+#include "printer.h"
+#include "reader.h"
+
 static int verify_signature_for_file(const char *filename);
-static void fread_mbedtls_mpi(FILE *f, mbedtls_mpi *mpi);
-void print_mbedtls_mpi(const char *mpiname, mbedtls_mpi mpi);
 int create_hash(const char* filename, unsigned char *hash, size_t *len);
 
 int main(int argc, char *argv[]) {
@@ -91,27 +92,3 @@ static int verify_signature_for_file(const char *filename) {
   return rc;
 }
 
-static void fread_mbedtls_mpi(FILE *f, mbedtls_mpi *mpi) {
-  mbedtls_mpi_init(mpi);
-
-  size_t read;
-  read = fread(&mpi->s, sizeof(mpi->s), 1, f);
-  assert(read==1);
-  read = fread(&mpi->n, sizeof(mpi->n), 1, f);
-  assert(read==1);
-
-  mpi->p = malloc(sizeof(mbedtls_mpi_uint)*mpi->n);
-  assert(mpi->p);
-  memset(mpi->p, 0, sizeof(mbedtls_mpi_uint)*mpi->n);
-  read = fread(mpi->p, sizeof(mbedtls_mpi_uint), mpi->n, f);
-  assert(read == mpi->n);
-#if 0
-typedef struct mbedtls_mpi
-{
-    int s;              /*!<  Sign: -1 if the mpi is negative, 1 otherwise */
-    size_t n;           /*!<  total # of limbs  */
-    mbedtls_mpi_uint *p;          /*!<  pointer to limbs  */
-}
-mbedtls_mpi;
-#endif 
-}
