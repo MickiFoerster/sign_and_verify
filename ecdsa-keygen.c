@@ -6,7 +6,7 @@
 #include <mbedtls/bignum.h>
 #include <mbedtls/ecdsa.h>
 
-#include "printer.h"
+#include "writer.h"
 
 static int myrand( void *rng_state, unsigned char *output, size_t len);
 static int create_keypair( mbedtls_ecp_group_id *grp_id, uint16_t *bit_size, mbedtls_mpi *d, mbedtls_ecp_point *Q);
@@ -107,7 +107,7 @@ static int myrand(void *rng_state, unsigned char *output, size_t len) {
   if (rng_state != NULL)
     rng_state = NULL;
 
-  FILE *fp = fopen("/dev/urandom", "rb");
+  FILE *fp = fopen("/dev/random", "rb");
   assert(fp);
   for (;;) {
     size_t read = fread(output, sizeof *output, len, fp);

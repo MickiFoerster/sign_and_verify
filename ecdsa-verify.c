@@ -7,8 +7,8 @@
 #include <mbedtls/bignum.h>
 #include <mbedtls/ecdsa.h>
 
-#include "printer.h"
 #include "reader.h"
+#include "writer.h"
 
 static int verify_signature_for_file(const char *filename);
 int create_hash(const char* filename, unsigned char *hash, size_t *len);

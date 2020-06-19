@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-//#include <omp.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -108,8 +108,8 @@ void hash_whole_file_with_2_threads() {
   int num_threads = 0;
 #pragma omp parallel num_threads(2)
   {
-//#pragma omp master
-//    num_threads = omp_get_num_threads();
+#pragma omp master
+    num_threads = omp_get_num_threads();
 #pragma omp sections
     {
 #pragma omp section

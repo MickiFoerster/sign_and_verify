@@ -1,35 +1,36 @@
 MBEDTLS=mbedtls-2.16.6
 DEBUG=-DDEBUG
-CFLAGS=-Wall -g -I$(MBEDTLS)/include $(DEBUG)
-#-fopenmp
+CFLAGS=-Wall -g -I$(MBEDTLS)/include $(DEBUG) -fopenmp
 LDFLAGS=-L$(MBEDTLS)/bld/library -lmbedcrypto 
+BINARIES=ecdsa-verify \
+		 ecdsa-sign \
+		 hash-benchmark \
+		 ecdsa-keygen
 
 %.o : %.c
 	$(CC) $(CFLAGS) -c -o $@ $< 
 
-all: verify_signature \
-     create_signature \
-     hash-evaluation \
-     create_keypair
+all: $(BINARIES)
 
-create_keypair : create_keypair.o printer.o
+ecdsa-keygen : ecdsa-keygen.o writer.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-verify_signature : verify_signature.o printer.o create_hash.o reader.o
+ecdsa-verify : ecdsa-verify.o writer.o ecdsa-hash.o reader.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-create_signature : create_signature.o printer.o create_hash.o 
+ecdsa-sign : ecdsa-sign.o writer.o ecdsa-hash.o load-keypair.o reader.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-test: hash-evaluation
+test: hash-benchmark
 	dd if=/dev/urandom of=testfile bs=4 count=4
 	./$<
 
-hash-evaluation : hash-evaluation.o
+hash-benchmark : hash-benchmark.o
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
-verify_signature.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
-create_signature.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
-hash-evaluation.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
+load-keypair.o : reader.o
+ecdsa-verify.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
+ecdsa-sign.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
+hash-benchmark.o: $(MBEDTLS)/bld/library/libmbedcrypto.a
 
 $(MBEDTLS)/bld/library/libmbedcrypto.a: $(MBEDTLS)-apache.tgz
 	rm -rf $(MBEDTLS)
@@ -40,9 +41,6 @@ $(MBEDTLS)-apache.tgz:
 	wget https://tls.mbed.org/download/$(MBEDTLS)-apache.tgz
 
 clean:
-	rm -f *.o \
-		    hash-evaluation \
-		    create_signature \
-				verify_signature 
+	rm -f *.o $(BINARIES)
 
 .PHONY: clean test

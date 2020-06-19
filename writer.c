@@ -1,6 +1,6 @@
+#include "writer.h"
 #include <assert.h>
 #include <stdio.h>
-#include "printer.h"
 
 void print_mbedtls_mpi(const char *mpiname, const mbedtls_mpi *mpi) {
   printf("%s (%ld bytes)\n", mpiname, sizeof(*mpi));

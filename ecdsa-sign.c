@@ -7,11 +7,11 @@
 #include <mbedtls/bignum.h>
 #include <mbedtls/ecdsa.h>
 
-#include "create_hash.h"
-#include "printer.h"
+#include "ecdsa-hash.h"
+#include "load-keypair.h"
+#include "writer.h"
 
 static int create_signature_for_file(const char *filename);
-int create_keypair(mbedtls_ecp_group_id *grp_id, uint16_t *bit_size, mbedtls_mpi *d, mbedtls_ecp_point *Q);
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -37,7 +37,7 @@ static int create_signature_for_file(const char *filename) {
   mbedtls_ecp_point Q;
   mbedtls_mpi_init(&d);
   mbedtls_ecp_point_init(&Q);
-  rc = create_keypair(&grp_id, &bit_size, &d, &Q);
+  rc = import_keypair(&grp_id, &bit_size, &d, &Q);
   assert(rc == 0);
 
   mbedtls_mpi r, s;
@@ -55,8 +55,8 @@ static int create_signature_for_file(const char *filename) {
   assert(rc == 0);
 
   // optional output for user
-  print_mbedtls_mpi("r", r);
-  print_mbedtls_mpi("s", s);
+  print_mbedtls_mpi("r", &r);
+  print_mbedtls_mpi("s", &s);
 
   // create signature file
   char signature_filename[PATH_MAX];
@@ -72,11 +72,11 @@ static int create_signature_for_file(const char *filename) {
     ch = fputc('\0', f);
     assert(ch == '\0');
   }
-  fprint_mbedtls_mpi(f, r);
-  fprint_mbedtls_mpi(f, s);
-  fprint_mbedtls_mpi(f, Q.X);
-  fprint_mbedtls_mpi(f, Q.Y);
-  fprint_mbedtls_mpi(f, Q.Z);
+  fprint_mbedtls_mpi(f, &r);
+  fprint_mbedtls_mpi(f, &s);
+  fprint_mbedtls_mpi(f, &Q.X);
+  fprint_mbedtls_mpi(f, &Q.Y);
+  fprint_mbedtls_mpi(f, &Q.Z);
   fclose(f);
 
   mbedtls_mpi_free(&r);
