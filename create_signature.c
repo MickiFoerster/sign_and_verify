@@ -8,10 +8,10 @@
 #include <mbedtls/ecdsa.h>
 
 void print_mbedtls_mpi(const char *mpiname, mbedtls_mpi mpi);
-static int myrand(void *rng_state, unsigned char *output, size_t len);
 static int create_signature_for_file(const char *filename);
 static void fprint_mbedtls_mpi(FILE *f, mbedtls_mpi mpi);
 int create_hash(const char* filename, unsigned char *hash, size_t *len);
+int create_keypair(mbedtls_ecp_group_id *grp_id, uint16_t *bit_size, mbedtls_mpi *d, mbedtls_ecp_point *Q);
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -31,56 +31,32 @@ static int create_signature_for_file(const char *filename) {
   int rc = create_hash(filename, hash, &len);
   assert(rc == 0);
 
-  mbedtls_ecdsa_context ecdsa;
-  const mbedtls_ecp_curve_info *curve_info = NULL;
+  mbedtls_ecp_group_id grp_id;
+  uint16_t bit_size;
+  mbedtls_mpi d;
+  mbedtls_ecp_point Q;
+  mbedtls_mpi_init(&d);
+  mbedtls_ecp_point_init(&Q);
+  rc = create_keypair(&grp_id, &bit_size, &d, &Q);
+  assert(rc == 0);
 
-  int ret;
   mbedtls_mpi r, s;
-  printf("sizeof(mbedtls_mpi_uint): %lu\n", sizeof(mbedtls_mpi_uint));
-  printf("sizeof(mbedtls_t_udbl): %lu\n", sizeof(mbedtls_t_udbl));
-
-  if (curve_info == NULL) {
-    for (curve_info = mbedtls_ecp_curve_list();
-         curve_info->grp_id != MBEDTLS_ECP_DP_BP512R1; curve_info++)
-      ;
-    assert(curve_info->grp_id == MBEDTLS_ECP_DP_BP512R1);
-#ifdef DEBUG
-    fprintf(stderr, "DEBUG:bit size %d, ECDSA-%s \n", curve_info->bit_size,
-            curve_info->name);
-#endif
-    if (curve_info->grp_id != MBEDTLS_ECP_DP_BP512R1)
-      return -1;
-    memset(&ecdsa, 0, sizeof(ecdsa));
-    mbedtls_ecdsa_init(&ecdsa);
-    if ((ret = mbedtls_ecdsa_genkey(&ecdsa, curve_info->grp_id, myrand,
-                                    NULL)) != 0) {
-      fprintf(stderr, "error: mbedtls_ecdsa_genkey() returned %d\n", ret);
-      return -1;
-    }
-  }
-  assert(curve_info != NULL);
   mbedtls_mpi_init(&r);
   mbedtls_mpi_init(&s);
 
-  ret = mbedtls_ecdsa_sign_det(&ecdsa.grp, &r, &s, &ecdsa.d, hash,
-                               curve_info->bit_size, MBEDTLS_MD_SHA512);
-  if (ret == 0)
+  mbedtls_ecp_group grp;
+  mbedtls_ecp_group_init(&grp);
+  rc = mbedtls_ecp_group_load(&grp, grp_id);
+  assert(rc == 0);
+
+  rc = mbedtls_ecdsa_sign_det(&grp, &r, &s, &d, hash, bit_size, MBEDTLS_MD_SHA512);
+  if (rc == 0)
     printf("Succesful signature\n");
-  assert(ret == 0);
+  assert(rc == 0);
 
   // optional output for user
   print_mbedtls_mpi("r", r);
-  printf("\n");
   print_mbedtls_mpi("s", s);
-  printf("\n");
-
-  printf("public key Q=(x,y,z):\n");
-  print_mbedtls_mpi("x", ecdsa.Q.X);
-  printf("\n");
-  print_mbedtls_mpi("y", ecdsa.Q.Y);
-  printf("\n");
-  print_mbedtls_mpi("z", ecdsa.Q.Z);
-  printf("\n");
 
   // create signature file
   char signature_filename[PATH_MAX];
@@ -98,15 +74,17 @@ static int create_signature_for_file(const char *filename) {
   }
   fprint_mbedtls_mpi(f, r);
   fprint_mbedtls_mpi(f, s);
-  fprint_mbedtls_mpi(f, ecdsa.Q.X);
-  fprint_mbedtls_mpi(f, ecdsa.Q.Y);
-  fprint_mbedtls_mpi(f, ecdsa.Q.Z);
+  fprint_mbedtls_mpi(f, Q.X);
+  fprint_mbedtls_mpi(f, Q.Y);
+  fprint_mbedtls_mpi(f, Q.Z);
   fclose(f);
 
   mbedtls_mpi_free(&r);
   mbedtls_mpi_free(&s);
+  mbedtls_mpi_free(&d);
+  mbedtls_ecp_point_free(&Q);
 
-  return (ret);
+  return rc;
 }
 
 static void fprint_mbedtls_mpi(FILE *f, mbedtls_mpi mpi) {
@@ -119,22 +97,3 @@ static void fprint_mbedtls_mpi(FILE *f, mbedtls_mpi mpi) {
   assert(written == mpi.n);
 }
 
-static int myrand(void *rng_state, unsigned char *output, size_t len) {
-  fprintf(stderr, "myrand() called with rng_state=%p and len=%ld \n", rng_state,
-          len);
-
-  if (rng_state != NULL)
-    rng_state = NULL;
-
-  FILE *fp = fopen("/dev/urandom", "rb");
-  assert(fp);
-  for (;;) {
-    size_t read = fread(output, sizeof *output, len, fp);
-    len -= read;
-    if (len == 0) {
-      break;
-    }
-  }
-
-  return 0;
-}

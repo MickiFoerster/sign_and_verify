@@ -1,5 +1,6 @@
 MBEDTLS=mbedtls-2.16.6
-CFLAGS=-Wall -g -I$(MBEDTLS)/include 
+DEBUG=-DDEBUG
+CFLAGS=-Wall -g -I$(MBEDTLS)/include $(DEBUG)
 #-fopenmp
 LDFLAGS=-L$(MBEDTLS)/bld/library -lmbedcrypto 
 
@@ -12,7 +13,7 @@ all: verify_signature \
 
 verify_signature : verify_signature.o printer.o create_hash.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-create_signature : create_signature.o printer.o create_hash.o
+create_signature : create_signature.o printer.o create_hash.o create_keypair.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 test: hash-evaluation

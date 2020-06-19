@@ -11,5 +11,6 @@ void print_mbedtls_mpi(const char *mpiname, mbedtls_mpi mpi) {
       printf("%02x", ((unsigned char *)&limb)[j]);
   }
   printf(" (%ld bytes)\n", sizeof(*mpi.p) * mpi.n);
+  printf("\n");
 }
 
