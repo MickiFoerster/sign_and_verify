@@ -20,9 +20,10 @@ ecdsa-verify : ecdsa-verify.o writer.o ecdsa-hash.o reader.o
 ecdsa-sign : ecdsa-sign.o writer.o ecdsa-hash.o load-keypair.o reader.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-test: hash-benchmark
-	dd if=/dev/urandom of=testfile bs=4 count=4
-	./$<
+test: $(BINARIES)
+	test/hash-benchmark.sh
+	test/fail.sh 
+	test/sign-and-verify.sh
 
 hash-benchmark : hash-benchmark.o
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
