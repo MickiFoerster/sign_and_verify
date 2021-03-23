@@ -3,6 +3,9 @@
 This repository contains tools for signing and verifying files with elliptic
 curve cryptograpy. 
 
+- C contains C implementation with mbedtls
+- go contains implementation with standard ecdsa library 
+
 
 ## Build
 
